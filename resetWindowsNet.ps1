@@ -2,6 +2,15 @@
 # Set-ExecutionPolicy RemoteSigned
 # let's check how boot process is going to be
 $global:logPath = "C:\Startup\wsl2_boot.log"
+#find the name from win+r "control.exe ncpa.cpl"
+$global:cardname =  "e2"
+
+$ip = "192.168.103.99/24"
+$gw = "192.168.103.1"
+
+
+$global:wslarguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$ip,$gw
+
 
 # TODO: configureWSL2Net set global variable with path to shell script to configure WSL network interface inside Linux
 # this function is used to configure network settings after VMSwitch is ready to be used by wsl instance
@@ -30,7 +39,9 @@ function ConfigureWSLNetwork {
     
     # wsl --distribution Ubuntu-20.04 -u root /home/p/configureWSL2Net.sh
     # configureWSL2Net.sh needs to be made executable
-    Start-Process -FilePath "wsl.exe" -ArgumentList "-u root /home/p/configureWSL2Net.sh"
+    #Start-Process -FilePath "wsl.exe" -ArgumentList "-u root /usr/local/hiit/configureWSL2Net.sh"
+    Start-Process -FilePath "wsl.exe" -ArgumentList $wslarguments 
+
     Write-Output "network configuration completed" >> $logPath
     
     Write-Output $wslStatus 5>> $logPath
@@ -61,8 +72,8 @@ Do {
         # manipulate network adapter tickboxes - Adapter cannot be bound because binding to Hyper-V is still there after M$ windows restarts.
         # Get-NetAdapterBinding Ethernet to view components of the interface vms_pp is what we look for
         
-        Set-NetAdapterBinding -Name "Ethernet" -ComponentID vms_pp -Enabled $False ;
-        Set-VMSwitch WSL -NetAdapterName "Ethernet" ;
+        Set-NetAdapterBinding -Name $cardname -ComponentID vms_pp -Enabled $False ;
+        Set-VMSwitch WSL -NetAdapterName $cardname ;
         $started = $true ;
         # Hook all Hyper V VMs to WSL network => avoid network performance issues.
         Write-Output  "Getting all Hyper V machines to use WSL Switch" >> $logPath ; 
