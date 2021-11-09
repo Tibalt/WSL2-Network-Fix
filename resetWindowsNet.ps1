@@ -32,12 +32,12 @@ function RemoveMulticastRoute{
       & route delete 224.0.0.0  
       $rtn = $LASTEXITCODE
       if($rtn -ne 0) {
-        write-host "RemoveMulticastRoute failed" >>$logPath
+        Write-Output "RemoveMulticastRoute failed" >>$logPath
         Start-Sleep 1
       }
   }
   Until($rtn -eq 0)
-  write-host "RemoveMulticastRoute done" >>$logPath
+  Write-Output "RemoveMulticastRoute done" >>$logPath
 }
 
 function StartForteSupervisord{
@@ -46,12 +46,12 @@ function StartForteSupervisord{
     Start-Sleep 1
     $rtn = (Start-Process -FilePath "wsl.exe" --ArgumentList $wslforte_arguments -Wait -Passthru).ExitCode
     if ($rtn -ne 0) {
-      write-host "StartForteSupervisord failed" >>$logPath
+      Write-Output "StartForteSupervisord failed" >>$logPath
       Start-Sleep 1
     }
   }
   Until($rtn -eq 0)
-  write-host "StartForteSupervisord done" >>$logPath
+  Write-Output "StartForteSupervisord done" >>$logPath
 }
 
 
@@ -63,18 +63,19 @@ function ConfigureWINNetwork {
       & netsh interface ip set address $virtualwincardname static $winip
       $rtn = $LASTEXITCODE
       if ($rtn -ne 0) {
-        write-host "ConfigureWINNetwork failed" >>$logPath
+        Write-Output "ConfigureWINNetwork failed" >>$logPath
         Start-Sleep 1
       }
   }
   Until($rtn -eq 0)
+  Write-Output "ConfigureWINNetwork done" >>$logPath
 }
 # TODO: configureWSL2Net set global variable with path to shell script to configure WSL network interface inside Linux
 # this function is used to configure network settings after VMSwitch is ready to be used by wsl instance
 function ConfigureWSLNetwork {
 
      
-    Write-Output "Starting WSL..." >> $logPath
+    #Write-Output "Starting WSL..." >> $logPath
     
     $wslStatus = Get-Process -Name "wsl" -ErrorAction SilentlyContinue
     if (!($wslStatus)) {
@@ -99,7 +100,7 @@ function ConfigureWSLNetwork {
     #Start-Process -FilePath "wsl.exe" -ArgumentList "-u root /usr/local/hiit/configureWSL2Net.sh"
     Start-Process -FilePath "wsl.exe" -ArgumentList $wslnet_arguments 
 
-    Write-Output "wsl network configuration completed" >> $logPath
+    Write-Output "ConfigureWSLNetwork done" >> $logPath
     
     Write-Output $wslStatus 5>> $logPath
     
@@ -119,6 +120,7 @@ $started = $false
 
 Do {
 
+    Write-Output "forte is starting!" >>$logPath
     RemoveMulticastRoute ;
 
     $status = Get-VMSwitch WSL -ErrorAction SilentlyContinue
@@ -126,7 +128,7 @@ Do {
     If (!($status)) { Write-Output 'Waiting for WSL swtich to get registered' ; Start-Sleep 1 }
     
     Else {
-        Write-Output  "WSL Network found" ; 
+        #Write-Output  "WSL Network found" ; 
         $started = $true; 
         # manipulate network adapter tickboxes - Adapter cannot be bound because binding to Hyper-V is still there after M$ windows restarts.
         # Get-NetAdapterBinding Ethernet to view components of the interface vms_pp is what we look for
@@ -134,13 +136,18 @@ Do {
         Set-VMSwitch WSL -NetAdapterName $realcardname ;
         $started = $true ;
         # Hook all Hyper V VMs to WSL network => avoid network performance issues.
-        Write-Output  "Getting all Hyper V machines to use WSL Switch" >> $logPath ; 
+        #Write-Output  "Getting all Hyper V machines to use WSL Switch" >> $logPath ; 
         Get-VM | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName "WSL" ; 
         # now that host network is configured we can set up wsl network
         ConfigureWSLNetwork ;
         ConfigureWINNetwork ;
         # Start All Hyper VMs
         Get-VM | Start-VM ;
+
+        Write-Output "After network card bridging" >>$logPath
+        $statusA = Get-VMSwitch WSL -ErrorAction SilentlyContinue
+        Write-Output $statusA >> $logPath
+
         StartForteSupervisord ;
     }
 
