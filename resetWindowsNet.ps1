@@ -4,10 +4,10 @@
 $global:logPath = "C:\Startup\wsl2_boot.log"
 
 # win+r "control.exe ncpa.cpl"可以看到所有网卡的名字
-# 将wsl linux和host win的以下网卡通过虚拟的交换机桥接
-$global:realcardname =  "e1"
+# 将wsl linux和host win的以下"realcardname"网卡通过虚拟的交换机桥接
+$global:realcardname =  "e3"
 
-#该名字暂时这样，todo：修改一个更容易理解的名字
+#该"vEthernet (WSL) 2"名字暂时这样，todo：修改一个更容易理解的名字
 #这是桥接之后，host win虚拟出的连接虚拟交换机的网卡
 $global:virtualwincardname =  "vEthernet (WSL) 2"
 
@@ -21,12 +21,53 @@ $gw = "192.168.103.1"
 #windows的ip
 $global:winip = "192.168.103.7/24"
 
-$global:wslarguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
+$global:wslnet_arguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
+
+$global:wslforte_arguments =  "-d Ubuntu-18.04 -u root /etc/init.wsl"
+
+
+function RemoveMulticastRoute{
+  $rtn  = 1;
+  Do{
+      & route delete 224.0.0.0  
+      $rtn = $LASTEXITCODE
+      if($rtn -ne 0) {
+        write-host "RemoveMulticastRoute failed" >>$logPath
+        Start-Sleep 1
+      }
+  }
+  Until($rtn -eq 0)
+  write-host "RemoveMulticastRoute done" >>$logPath
+}
+
+function StartForteSupervisord{
+  $rtn  = 1;
+  Do{
+    Start-Sleep 1
+    $rtn = (Start-Process -FilePath "wsl.exe" --ArgumentList $wslforte_arguments -Wait -Passthru).ExitCode
+    if ($rtn -ne 0) {
+      write-host "StartForteSupervisord failed" >>$logPath
+      Start-Sleep 1
+    }
+  }
+  Until($rtn -eq 0)
+  write-host "StartForteSupervisord done" >>$logPath
+}
+
 
 
 function ConfigureWINNetwork {
 #netsh interface ip set address "vEthernet (WSL) 2" static $winip
-netsh interface ip set address $virtualwincardname static $winip
+  $rtn  = 1;
+  Do{
+      & netsh interface ip set address $virtualwincardname static $winip
+      $rtn = $LASTEXITCODE
+      if ($rtn -ne 0) {
+        write-host "ConfigureWINNetwork failed" >>$logPath
+        Start-Sleep 1
+      }
+  }
+  Until($rtn -eq 0)
 }
 # TODO: configureWSL2Net set global variable with path to shell script to configure WSL network interface inside Linux
 # this function is used to configure network settings after VMSwitch is ready to be used by wsl instance
@@ -56,9 +97,9 @@ function ConfigureWSLNetwork {
     # wsl --distribution Ubuntu-20.04 -u root /home/p/configureWSL2Net.sh
     # configureWSL2Net.sh needs to be made executable
     #Start-Process -FilePath "wsl.exe" -ArgumentList "-u root /usr/local/hiit/configureWSL2Net.sh"
-    Start-Process -FilePath "wsl.exe" -ArgumentList $wslarguments 
+    Start-Process -FilePath "wsl.exe" -ArgumentList $wslnet_arguments 
 
-    Write-Output "network configuration completed" >> $logPath
+    Write-Output "wsl network configuration completed" >> $logPath
     
     Write-Output $wslStatus 5>> $logPath
     
@@ -78,6 +119,8 @@ $started = $false
 
 Do {
 
+    RemoveMulticastRoute ;
+
     $status = Get-VMSwitch WSL -ErrorAction SilentlyContinue
     Write-Output $status >> $logPath
     If (!($status)) { Write-Output 'Waiting for WSL swtich to get registered' ; Start-Sleep 1 }
@@ -87,7 +130,6 @@ Do {
         $started = $true; 
         # manipulate network adapter tickboxes - Adapter cannot be bound because binding to Hyper-V is still there after M$ windows restarts.
         # Get-NetAdapterBinding Ethernet to view components of the interface vms_pp is what we look for
-        
         Set-NetAdapterBinding -Name $realcardname -ComponentID vms_pp -Enabled $False ;
         Set-VMSwitch WSL -NetAdapterName $realcardname ;
         $started = $true ;
@@ -99,6 +141,7 @@ Do {
         ConfigureWINNetwork ;
         # Start All Hyper VMs
         Get-VM | Start-VM ;
+        StartForteSupervisord ;
     }
 
 }
