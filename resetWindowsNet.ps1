@@ -32,12 +32,12 @@ function RemoveMulticastRoute{
       & route delete 224.0.0.0  
       $rtn = $LASTEXITCODE
       if($rtn -ne 0) {
-        Write-Output "RemoveMulticastRoute failed" >>$logPath
+        Write-Output "$(Get-Date):RemoveMulticastRoute failed" >>$logPath
         Start-Sleep 1
       }
   }
   Until($rtn -eq 0)
-  Write-Output "RemoveMulticastRoute done" >>$logPath
+  Write-Output "$(Get-Date):RemoveMulticastRoute done" >>$logPath
 }
 
 function StartForteSupervisord{
@@ -46,12 +46,12 @@ function StartForteSupervisord{
     Start-Sleep 1
     $rtn = (Start-Process -FilePath "wsl.exe" --ArgumentList $wslforte_arguments -Wait -Passthru).ExitCode
     if ($rtn -ne 0) {
-      Write-Output "StartForteSupervisord failed" >>$logPath
+      Write-Output "$(Get-Date):StartForteSupervisord failed" >>$logPath
       Start-Sleep 1
     }
   }
   Until($rtn -eq 0)
-  Write-Output "StartForteSupervisord done" >>$logPath
+  Write-Output "$(Get-Date):StartForteSupervisord done" >>$logPath
 }
 
 
@@ -63,12 +63,12 @@ function ConfigureWINNetwork {
       & netsh interface ip set address $virtualwincardname static $winip
       $rtn = $LASTEXITCODE
       if ($rtn -ne 0) {
-        Write-Output "ConfigureWINNetwork failed" >>$logPath
+        Write-Output "$(Get-Date):ConfigureWINNetwork failed" >>$logPath
         Start-Sleep 1
       }
   }
   Until($rtn -eq 0)
-  Write-Output "ConfigureWINNetwork done" >>$logPath
+  Write-Output "$(Get-Date):ConfigureWINNetwork done" >>$logPath
 }
 # TODO: configureWSL2Net set global variable with path to shell script to configure WSL network interface inside Linux
 # this function is used to configure network settings after VMSwitch is ready to be used by wsl instance
@@ -86,9 +86,9 @@ function ConfigureWSLNetwork {
 
         $wslStatus = Get-Process -Name "wsl" -ErrorAction SilentlyContinue
     
-        If (!($wslStatus)) { Write-Output 'Waiting for WSL2 process to start' >> $logPath ; Start-Sleep 1 }
+        If (!($wslStatus)) { Write-Output "$(Get-Date):Waiting for WSL2 process to start" >> $logPath ; Start-Sleep 1 }
         
-        Else { Write-Output 'WSL Process has started, configuring network' >> $logPath ; $wslStarted = $true }
+        Else { Write-Output "$(Get-Date):WSL Process has started, configuring network" >> $logPath ; $wslStarted = $true }
     
     }
     Until ( $wslStarted )
@@ -100,9 +100,9 @@ function ConfigureWSLNetwork {
     #Start-Process -FilePath "wsl.exe" -ArgumentList "-u root /usr/local/hiit/configureWSL2Net.sh"
     Start-Process -FilePath "wsl.exe" -ArgumentList $wslnet_arguments 
 
-    Write-Output "ConfigureWSLNetwork done" >> $logPath
+    Write-Output "$(Get-Date):ConfigureWSLNetwork done" >> $logPath
     
-    Write-Output $wslStatus 5>> $logPath
+    Write-Output "$(Get-Date):$wslStatus" 5>> $logPath
     
     return 0
     
@@ -120,12 +120,14 @@ $started = $false
 
 Do {
 
-    Write-Output "forte is starting!" >>$logPath
+    
+
+    Write-Output " $(Get-Date): forte is starting!" >>$logPath
     RemoveMulticastRoute ;
 
     $status = Get-VMSwitch WSL -ErrorAction SilentlyContinue
-    Write-Output $status >> $logPath
-    If (!($status)) { Write-Output 'Waiting for WSL swtich to get registered' ; Start-Sleep 1 }
+    Write-Output "$(Get-Date):$status" >> $logPath
+    If (!($status)) { Write-Output "$(Get-Date):Waiting for WSL swtich to get registered" ; Start-Sleep 1 }
     
     Else {
         #Write-Output  "WSL Network found" ; 
@@ -144,9 +146,9 @@ Do {
         # Start All Hyper VMs
         Get-VM | Start-VM ;
 
-        Write-Output "After network card bridging" >>$logPath
+        Write-Output "$(Get-Date):After network card bridging" >>$logPath
         $statusA = Get-VMSwitch WSL -ErrorAction SilentlyContinue
-        Write-Output $statusA >> $logPath
+        Write-Output "$(Get-Date):$statusA" >> $logPath
 
         StartForteSupervisord ;
     }
