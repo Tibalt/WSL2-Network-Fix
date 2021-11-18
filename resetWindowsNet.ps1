@@ -21,7 +21,7 @@ $gw = "192.168.103.1"
 #windows的ip
 $global:winip = "192.168.103.200"
 $global:winmask = "255.255.255.0"
-$global:wingw = "192.168.103.254/24"
+$global:wingw = "192.168.103.254"
 
 $global:wslnet_arguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
 
@@ -46,7 +46,7 @@ function StartForteSupervisord{
   $rtn  = 1;
   Do{
     Start-Sleep 1
-    $rtn = (Start-Process -FilePath "wsl.exe" --ArgumentList $wslforte_arguments -Wait -Passthru).ExitCode
+    $rtn = (Start-Process -FilePath "wsl.exe" -ArgumentList $wslforte_arguments -Wait -Passthru).ExitCode
     if ($rtn -ne 0) {
       Write-Output "$(Get-Date):StartForteSupervisord failed" >>$logPath
       Start-Sleep 1
@@ -59,10 +59,12 @@ function StartForteSupervisord{
 
 
 function ConfigureWINNetwork {
-#netsh interface ip set address "vEthernet (WSL) 2" static $winip
   $rtn  = 1;
   Do{
-      & netsh interface ip set address $virtualwincardname static $winip $winmask $wingw
+      #& netsh interface ipv4 set address name=$virtualwincardname source=dhcp
+      #& netsh interface ipv4 set dns name=$virtualwincardname source=dhcp
+      & netsh interface ipv4 set address name=$virtualwincardname static $winip $winmask $wingw
+      & netsh interface ipv4 set dns name=$virtualwincardname  static 8.8.8.8
       $rtn = $LASTEXITCODE
       if ($rtn -ne 0) {
         Write-Output "$(Get-Date):ConfigureWINNetwork failed" >>$logPath
