@@ -5,7 +5,7 @@ $global:logPath = "C:\Startup\wsl2_boot.log"
 
 # win+r "control.exe ncpa.cpl"可以看到所有网卡的名字
 # 将wsl linux和host win的以下"realcardname"网卡通过虚拟的交换机桥接
-$global:realcardname =  "e3"
+$global:realcardname =  "e2"
 
 #该"vEthernet (WSL) 2"名字暂时这样，todo：修改一个更容易理解的名字
 #这是桥接之后，host win虚拟出的连接虚拟交换机的网卡
@@ -14,12 +14,14 @@ $global:virtualwincardname =  "vEthernet (WSL) 2"
 
 
 #wsl linux的ip
-$wslip = "192.168.103.99/24"
+$wslip = "192.168.103.199/24"
 #局域网网关，如果需要转发或者上网，需要设置
 $gw = "192.168.103.1"
 
 #windows的ip
-$global:winip = "192.168.103.7/24"
+$global:winip = "192.168.103.200"
+$global:winmask = "255.255.255.0"
+$global:wingw = "192.168.103.254/24"
 
 $global:wslnet_arguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
 
@@ -60,7 +62,7 @@ function ConfigureWINNetwork {
 #netsh interface ip set address "vEthernet (WSL) 2" static $winip
   $rtn  = 1;
   Do{
-      & netsh interface ip set address $virtualwincardname static $winip
+      & netsh interface ip set address $virtualwincardname static $winip $winmask $wingw
       $rtn = $LASTEXITCODE
       if ($rtn -ne 0) {
         Write-Output "$(Get-Date):ConfigureWINNetwork failed" >>$logPath
