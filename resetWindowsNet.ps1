@@ -1,3 +1,4 @@
+$inifile=".\config.ini"
 # to execute you need to set this up:
 # Set-ExecutionPolicy RemoteSigned
 # let's check how boot process is going to be
@@ -14,7 +15,7 @@ $global:virtualwincardname =  "vEthernet (WSL) 2"
 
 
 #wsl linux的ip
-$wslip = "192.168.103.199/24"
+$wslip = "192.168.103.199"
 #局域网网关，如果需要转发或者上网，需要设置
 $gw = "192.168.103.1"
 
@@ -23,10 +24,42 @@ $global:winip = "192.168.103.200"
 $global:winmask = "255.255.255.0"
 $global:wingw = "192.168.103.254"
 
-$global:wslnet_arguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
-
 $global:wslforte_arguments =  "-d Ubuntu-18.04 -u root /etc/init.wsl"
 
+
+Function GetIniFile
+{
+$ini = @{}
+
+Get-Content $inifile | ForEach-Object {
+  $_.Trim()
+} | Where-Object {
+  $_ -notmatch '^(;|$)'
+} | ForEach-Object {
+  if ($_ -match '^\[.*\]$') {
+    $section = $_ -replace '\[|\]'
+    $ini[$section] = @{}
+  } else {
+    $key, $value = $_ -split '\s*=\s*', 2
+    $ini[$section][$key] = $value
+  }
+}
+
+$global:winip=$ini.Setting.winip
+$global:wslip =$ini.Setting.wslip
+$global:gw=$ini.Setting.gw
+$global:winmask=$ini.Setting.winmask
+$global:wingw=$ini.Setting.wingw
+$global:realcardname=$ini.Setting.realcardname
+}
+GetIniFile
+Write-Output " $(Get-Date): $winip" >>$logPath
+Write-Output " $(Get-Date): $wslip" >>$logPath
+Write-Output " $(Get-Date): $gw" >>$logPath
+Write-Output " $(Get-Date): $winmask" >>$logPath
+Write-Output " $(Get-Date): $wingw" >>$logPath
+Write-Output " $(Get-Date): $realcardname" >>$logPath
+$global:wslnet_arguments =  "-u root /usr/local/hiit/configureWSL2Net.sh",$wslip,$gw
 
 function RemoveMulticastRoute{
   $rtn  = 1;
