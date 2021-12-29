@@ -1,4 +1,4 @@
-$inifile="C:\4PIC\config.ini"
+$inifile="C:\config.ini"
 # to execute you need to set this up:
 # Set-ExecutionPolicy RemoteSigned
 # let's check how boot process is going to be
